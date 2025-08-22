@@ -1,142 +1,129 @@
 # random-game
 ..07
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>Игра — Угадай число</title>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+  <title>Игра угадай число</title>
   <style>
     body {
-      background: linear-gradient(270deg, red, orange, yellow, green, cyan, blue, violet);
-      background-size: 1400% 1400%;
-      animation: gradient 15s ease infinite;
       font-family: Arial, sans-serif;
-      text-align: center;
+      background: linear-gradient(270deg, red, orange, yellow, green, blue, indigo, violet);
+      background-size: 1400% 1400%;
+      animation: rainbow 15s ease infinite;
       color: white;
+      text-align: center;
     }
-    @keyframes gradient {
+    @keyframes rainbow {
       0% {background-position:0% 50%}
       50% {background-position:100% 50%}
       100% {background-position:0% 50%}
     }
-    h1 {
-      font-size: 3em;
-      text-shadow: 2px 2px 5px black;
-    }
-    input, button {
-      padding: 10px;
-      margin: 5px;
-      border-radius: 10px;
-      border: none;
-      font-size: 1em;
-      box-shadow: 2px 2px 8px rgba(0,0,0,0.5);
-    }
-    button {
-      background: linear-gradient(45deg, #ff0080, #7928ca);
-      color: white;
-      cursor: pointer;
-    }
-    #leaderboard {
-      margin-top: 20px;
-      padding: 15px;
-      background: rgba(0,0,0,0.4);
-      border-radius: 15px;
-    }
+    #leaderboard { margin-top: 20px; }
+    table { margin: auto; border-collapse: collapse; }
+    th, td { border: 1px solid white; padding: 8px; }
   </style>
 </head>
 <body>
-  <h1>🎮 Угадай число</h1>
+  <h1>🎲 Угадай число!</h1>
 
-  <div id="loginDiv">
+  <div id="login">
     <input type="text" id="nickname" placeholder="Введите никнейм">
     <button onclick="startGame()">Начать игру</button>
   </div>
 
-  <div id="gameDiv" style="display:none;">
-    <p>Мы загадали число от 1 до 100. Попробуй угадать!</p>
+  <div id="game" style="display:none;">
+    <p>Угадай число от 1 до 100</p>
     <input type="number" id="guess" min="1" max="100">
-    <button onclick="makeGuess()">Угадать</button>
-    <p id="message"></p>
+    <button onclick="makeGuess()">Проверить</button>
+    <p id="result"></p>
   </div>
 
   <div id="leaderboard">
     <h2>🏆 Лучшие игроки</h2>
-    <ol id="scores"></ol>
+    <table>
+      <thead><tr><th>Игрок</th><th>Попытки</th></tr></thead>
+      <tbody id="scores"></tbody>
+    </table>
   </div>
 
-  <script>
-    // ТВОИ данные из Firebase Console
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
     const firebaseConfig = {
       apiKey: "AIzaSyCQvOVtvW9pvpB_zX8BT8rl3ifq7ccCbWA",
       authDomain: "random-452ad.firebaseapp.com",
-      databaseURL: "https://random-452ad-default-rtdb.firebaseio.com/",
+      databaseURL: "https://random-452ad-default-rtdb.firebaseio.com",
       projectId: "random-452ad",
       storageBucket: "random-452ad.appspot.com",
       messagingSenderId: "59615060095",
-      appId: "1:59615060095:web:85945336fae57ca3021f4a",
-      measurementId: "G-G29JVBR978"
+      appId: "1:59615060095:web:85945336fae57ca3021f4a"
     };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-    let secretNumber;
-    let attempts;
-    let playerName;
+    let randomNumber;
+    let attempts = 0;
+    let currentNickname = "";
 
     function startGame() {
-      playerName = document.getElementById("nickname").value.trim();
-      if (!playerName) {
+      currentNickname = document.getElementById("nickname").value.trim();
+      if (!currentNickname) {
         alert("Введите никнейм!");
         return;
       }
-      document.getElementById("loginDiv").style.display = "none";
-      document.getElementById("gameDiv").style.display = "block";
-      secretNumber = Math.floor(Math.random() * 100) + 1;
+      document.getElementById("login").style.display = "none";
+      document.getElementById("game").style.display = "block";
+      randomNumber = Math.floor(Math.random() * 100) + 1;
       attempts = 0;
     }
+    window.startGame = startGame;
 
     function makeGuess() {
       const guess = parseInt(document.getElementById("guess").value);
-      if (!guess) return;
       attempts++;
-      if (guess === secretNumber) {
-        document.getElementById("message").innerText =
-          `🎉 Ура, ${playerName}! Ты угадал число за ${attempts} попыток!`;
-        saveResult(playerName, attempts);
-      } else if (guess < secretNumber) {
-        document.getElementById("message").innerText = "📉 Загаданное число больше!";
+      if (guess === randomNumber) {
+        document.getElementById("result").innerText = 
+          `🎉 Правильно! Вы угадали за ${attempts} попыток.`;
+        saveScore(currentNickname, attempts);
+      } else if (guess < randomNumber) {
+        document.getElementById("result").innerText = "Слишком маленькое число!";
       } else {
-        document.getElementById("message").innerText = "📈 Загаданное число меньше!";
+        document.getElementById("result").innerText = "Слишком большое число!";
       }
     }
+    window.makeGuess = makeGuess;
 
-    function saveResult(name, score) {
-      const scoresRef = db.ref("scores");
-      scoresRef.push({ name, score });
-    }
-
-    function loadLeaderboard() {
-      const scoresRef = db.ref("scores");
-      scoresRef.on("value", snapshot => {
-        const scoresList = document.getElementById("scores");
-        scoresList.innerHTML = "";
-        const scores = [];
-        snapshot.forEach(child => {
-          scores.push(child.val());
-        });
-        scores.sort((a, b) => a.score - b.score);
-        scores.slice(0, 10).forEach(s => {
-          const li = document.createElement("li");
-          li.textContent = `${s.name} — ${s.score} попыток`;
-          scoresList.appendChild(li);
-        });
+    function saveScore(nickname, attempts) {
+      push(ref(db, "scores"), {
+        name: nickname,
+        attempts: attempts,
+        timestamp: Date.now()
       });
     }
 
-    loadLeaderboard();
+    function loadScores() {
+      const scoresRef = ref(db, "scores");
+      onValue(scoresRef, (snapshot) => {
+        const data = snapshot.val();
+        const list = [];
+        for (let id in data) {
+          list.push(data[id]);
+        }
+        list.sort((a, b) => a.attempts - b.attempts);
+        const tbody = document.getElementById("scores");
+        tbody.innerHTML = "";
+        list.slice(0, 10).forEach((item) => {
+          const row = `<tr><td>${item.name}</td><td>${item.attempts}</td></tr>`;
+          tbody.innerHTML += row;
+        });
+      });
+    }
+    loadScores();
   </script>
 </body>
 </html>
+
