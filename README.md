@@ -1,5 +1,3 @@
-# random-game
-..07
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -129,6 +127,14 @@
             background: #e67e22;
         }
         
+        .btn-info {
+            background: #17a2b8;
+        }
+        
+        .btn-info:hover {
+            background: #138496;
+        }
+        
         .message {
             padding: 10px;
             border-radius: 8px;
@@ -230,6 +236,37 @@
             to { transform: rotate(360deg); }
         }
         
+        .currency-display {
+            background: linear-gradient(135deg, #ffd700 0%, #ffec8b 100%);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            color: #8b7500;
+            display: inline-flex;
+            align-items: center;
+            margin-left: 10px;
+        }
+        
+        .currency-icon {
+            margin-right: 5px;
+            font-size: 1.2em;
+        }
+        
+        .hint-section {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #3498db;
+        }
+        
+        .hint-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        
         @media (max-width: 768px) {
             .content {
                 padding: 15px;
@@ -243,6 +280,10 @@
                 width: 100%;
                 margin-bottom: 10px;
             }
+            
+            .hint-buttons {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -250,7 +291,7 @@
     <div class="container">
         <header>
             <h1>Угадай число</h1>
-            <div class="subtitle">Проверь свою интуицию и попади в глобальный рейтинг!</div>
+            <div class="subtitle">Проверь свою интуицию и зарабатывай эски!</div>
         </header>
         
         <div class="content">
@@ -302,6 +343,19 @@
                 </div>
                 <button class="btn" onclick="startGame()">Новая игра</button>
                 <button class="btn btn-success" onclick="checkGuess()">Проверить</button>
+                
+                <!-- Секция подсказок -->
+                <div class="hint-section">
+                    <h3>Подсказки</h3>
+                    <p>Купи подсказку, чтобы легче отгадать число!</p>
+                    <div class="hint-buttons">
+                        <button class="btn btn-info" onclick="buyHint('range')">Купить подсказку диапазона (5 эски)</button>
+                        <button class="btn btn-info" onclick="buyHint('evenodd')">Купить подсказку четности (3 эски)</button>
+                        <button class="btn btn-info" onclick="buyHint('multiple')">Купить подсказку кратности (7 эски)</button>
+                    </div>
+                    <div id="hint-result" class="message"></div>
+                </div>
+                
                 <div id="result" class="message"></div>
             </div>
             
@@ -315,14 +369,15 @@
                     <thead>
                         <tr>
                             <th width="10%">Место</th>
-                            <th width="40%">Игрок</th>
-                            <th width="25%">Страна</th>
-                            <th width="25%">Рекорд</th>
+                            <th width="30%">Игрок</th>
+                            <th width="20%">Страна</th>
+                            <th width="20%">Рекорд</th>
+                            <th width="20%">Эски</th>
                         </tr>
                     </thead>
                     <tbody id="leaderboard-body">
                         <tr>
-                            <td colspan="4" style="text-align: center;">Загрузка рейтинга...</td>
+                            <td colspan="5" style="text-align: center;">Загрузка рейтинга...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -331,16 +386,13 @@
     </div>
 
     <script>
-        // API endpoints (в реальном приложении должны быть защищены)
-        const API_URL = 'https://jsonblob.com/api/jsonBlob';
-        // Для демонстрации используем JSONBin, но в реальном приложении нужен собственный сервер
-        
         // Хранилище данных
         let users = {};
         let currentUser = null;
         let targetNumber = 0;
         let attempts = 0;
         let gameStarted = false;
+        let hintsUsed = [];
         
         // Флаги стран
         const countryFlags = {
@@ -397,22 +449,21 @@
             }
         };
 
-        // Загрузка рейтинга с сервера
+        // Загрузка рейтинга
         async function loadLeaderboard() {
             try {
                 document.getElementById('leaderboard-body').innerHTML = `
                     <tr>
-                        <td colspan="4" style="text-align: center;">
+                        <td colspan="5" style="text-align: center;">
                             <div class="loading"></div> Загрузка рейтинга...
                         </td>
                     </tr>
                 `;
                 
-                // В реальном приложении здесь должен быть запрос к вашему серверу
-                // Для демонстрации используем localStorage, но с имитацией задержки сети
+                // Имитация задержки сети
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                // Получаем данные из localStorage (в реальном приложении - с сервера)
+                // Получаем данные из localStorage
                 const storedUsers = JSON.parse(localStorage.getItem('guessNumberUsers')) || {};
                 users = storedUsers;
                 
@@ -421,7 +472,7 @@
                 console.error('Ошибка загрузки рейтинга:', error);
                 document.getElementById('leaderboard-body').innerHTML = `
                     <tr>
-                        <td colspan="4" style="text-align: center; color: #e74c3c;">
+                        <td colspan="5" style="text-align: center; color: #e74c3c;">
                             Ошибка загрузки рейтинга. Попробуйте позже.
                         </td>
                     </tr>
@@ -429,14 +480,10 @@
             }
         }
 
-        // Сохранение данных на сервер
+        // Сохранение данных
         async function saveData() {
             try {
-                // В реальном приложении здесь должен быть запрос к вашему серверу
-                // Для демонстрации используем localStorage
                 localStorage.setItem('guessNumberUsers', JSON.stringify(users));
-                
-                // Имитация отправки на сервер
                 await new Promise(resolve => setTimeout(resolve, 500));
                 return true;
             } catch (error) {
@@ -451,8 +498,11 @@
             document.getElementById('attempts').style.display = show ? 'block' : 'none';
             document.getElementById('guess-input').style.display = show ? 'block' : 'none';
             document.querySelectorAll('.game-section .btn').forEach(btn => {
-                btn.style.display = show ? 'inline-block' : 'none';
+                if (!btn.classList.contains('btn-info')) {
+                    btn.style.display = show ? 'inline-block' : 'none';
+                }
             });
+            document.querySelector('.hint-section').style.display = show ? 'block' : 'none';
         }
 
         // Обновить информацию о пользователе
@@ -469,6 +519,9 @@
                 
                 document.getElementById('user-info').innerHTML = `
                     Вы вошли как: <strong>${currentUser}</strong> ${flagHtml} ${countryName}
+                    <div class="currency-display">
+                        <span class="currency-icon">🪙</span> ${user.eski || 0} эски
+                    </div>
                     <button class="btn btn-danger" onclick="logout()" style="padding: 5px 10px; margin-left: 10px;">Выйти</button>
                 `;
             } else {
@@ -488,7 +541,8 @@
                     usersWithRecords.push({
                         username: username,
                         country: users[username].country,
-                        bestScore: users[username].bestScore
+                        bestScore: users[username].bestScore,
+                        eski: users[username].eski || 0
                     });
                 }
             }
@@ -500,7 +554,7 @@
             const topUsers = usersWithRecords.slice(0, 10);
             
             if (topUsers.length === 0) {
-                leaderboardBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Пока нет записей в рейтинге</td></tr>';
+                leaderboardBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Пока нет записей в рейтинге</td></tr>';
                 return;
             }
             
@@ -523,6 +577,7 @@
                     <td>${user.username}</td>
                     <td>${flagHtml} ${countryNames[countryCode] || ''}</td>
                     <td>${user.bestScore} попыток</td>
+                    <td>${user.eski} эски</td>
                 `;
                 
                 leaderboardBody.appendChild(row);
@@ -549,7 +604,7 @@
                 return;
             }
             
-            users[username] = { password, country, bestScore: null };
+            users[username] = { password, country, bestScore: null, eski: 0 };
             
             const saved = await saveData();
             if (saved) {
@@ -596,10 +651,12 @@
             targetNumber = Math.floor(Math.random() * 100) + 1;
             attempts = 0;
             gameStarted = true;
+            hintsUsed = [];
             
             document.getElementById('game-info').textContent = 'Я загадал число от 1 до 100. Попробуй угадать!';
             document.getElementById('attempts').textContent = 'Попытки: 0';
             document.getElementById('result').textContent = '';
+            document.getElementById('hint-result').textContent = '';
             document.getElementById('guess-input').value = '';
             document.getElementById('guess-input').focus();
         }
@@ -627,29 +684,38 @@
             document.getElementById('attempts').textContent = `Попытки: ${attempts}`;
             
             if (guess === targetNumber) {
-                showMessage(document.getElementById('result'), `Поздравляем! Вы угадали число ${targetNumber} за ${attempts} попыток!`, 'success');
+                let rewardMessage = '';
                 
-                // Загружаем актуальные данные перед обновлением
-                await loadLeaderboard();
+                // Начисляем эски за победу за 1-5 попыток
+                if (attempts <= 5) {
+                    users[currentUser].eski = (users[currentUser].eski || 0) + 20;
+                    rewardMessage = ` Вы получили 20 эски за победу за ${attempts} попытки!`;
+                }
+                
+                showMessage(document.getElementById('result'), `Поздравляем! Вы угадали число ${targetNumber} за ${attempts} попыток!${rewardMessage}`, 'success');
                 
                 // Обновляем рекорд, если он лучше предыдущего
+                let isNewRecord = false;
                 if (users[currentUser].bestScore === null || attempts < users[currentUser].bestScore) {
                     users[currentUser].bestScore = attempts;
+                    isNewRecord = true;
+                }
+                
+                // Сохраняем данные
+                const saved = await saveData();
+                if (saved) {
+                    updateLeaderboard();
+                    updateUserInfo();
                     
-                    const saved = await saveData();
-                    if (saved) {
-                        updateLeaderboard();
-                        
-                        if (users[currentUser].bestScore === attempts) {
-                            showMessage(document.getElementById('result'), 
-                                      `Новый рекорд! Вы вошли в глобальный рейтинг с результатом ${attempts} попыток!`, 
-                                      'success');
-                        }
-                    } else {
+                    if (isNewRecord) {
                         showMessage(document.getElementById('result'), 
-                                  'Ошибка сохранения рекорда. Попробуйте позже.', 
-                                  'error');
+                                  `Новый рекорд! Вы вошли в глобальный рейтинг с результатом ${attempts} попыток!`, 
+                                  'success');
                     }
+                } else {
+                    showMessage(document.getElementById('result'), 
+                              'Ошибка сохранения рекорда. Попробуйте позже.', 
+                              'error');
                 }
                 
                 gameStarted = false;
@@ -661,6 +727,84 @@
             
             document.getElementById('guess-input').value = '';
             document.getElementById('guess-input').focus();
+        }
+
+        // Покупка подсказки
+        function buyHint(type) {
+            if (!gameStarted) {
+                showMessage(document.getElementById('hint-result'), 'Сначала начните игру!', 'error');
+                return;
+            }
+            
+            if (!currentUser) {
+                showMessage(document.getElementById('hint-result'), 'Сначала войдите в систему!', 'error');
+                return;
+            }
+            
+            const user = users[currentUser];
+            const eski = user.eski || 0;
+            let hintCost = 0;
+            let hintMessage = '';
+            
+            // Определяем стоимость и содержание подсказки
+            switch(type) {
+                case 'range':
+                    hintCost = 5;
+                    if (hintsUsed.includes('range')) {
+                        showMessage(document.getElementById('hint-result'), 'Вы уже использовали эту подсказку!', 'error');
+                        return;
+                    }
+                    const rangeStart = Math.max(1, targetNumber - 10);
+                    const rangeEnd = Math.min(100, targetNumber + 10);
+                    hintMessage = `Загаданное число находится между ${rangeStart} и ${rangeEnd}`;
+                    break;
+                    
+                case 'evenodd':
+                    hintCost = 3;
+                    if (hintsUsed.includes('evenodd')) {
+                        showMessage(document.getElementById('hint-result'), 'Вы уже использовали эту подсказку!', 'error');
+                        return;
+                    }
+                    hintMessage = `Загаданное число является ${targetNumber % 2 === 0 ? 'четным' : 'нечетным'}`;
+                    break;
+                    
+                case 'multiple':
+                    hintCost = 7;
+                    if (hintsUsed.includes('multiple')) {
+                        showMessage(document.getElementById('hint-result'), 'Вы уже использовали эту подсказку!', 'error');
+                        return;
+                    }
+                    
+                    // Находим делители числа
+                    const divisors = [];
+                    for (let i = 2; i < targetNumber; i++) {
+                        if (targetNumber % i === 0) {
+                            divisors.push(i);
+                            if (divisors.length >= 2) break;
+                        }
+                    }
+                    
+                    if (divisors.length > 0) {
+                        hintMessage = `Загаданное число делится на ${divisors.join(', ')}`;
+                    } else {
+                        hintMessage = 'Загаданное число является простым (делится только на 1 и само себя)';
+                    }
+                    break;
+            }
+            
+            // Проверяем, хватает ли эски
+            if (eski < hintCost) {
+                showMessage(document.getElementById('hint-result'), `Недостаточно эски! Нужно ${hintCost}, у вас ${eski}.`, 'error');
+                return;
+            }
+            
+            // Списание эски и показ подсказки
+            user.eski = eski - hintCost;
+            hintsUsed.push(type);
+            updateUserInfo();
+            saveData();
+            
+            showMessage(document.getElementById('hint-result'), `Подсказка (стоимость: ${hintCost} эски): ${hintMessage}`, 'info');
         }
 
         // Показать сообщение
