@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Угадай число - Международный рейтинг</title>
+    <title>Угадай число - Глобальный рейтинг</title>
     <style>
         * {
             box-sizing: border-box;
@@ -71,7 +71,7 @@
             margin-bottom: 15px;
         }
         
-        input {
+        input, select {
             width: 100%;
             padding: 12px 15px;
             border: 2px solid #ddd;
@@ -80,7 +80,7 @@
             transition: border-color 0.3s;
         }
         
-        input:focus {
+        input:focus, select:focus {
             border-color: #3498db;
             outline: none;
         }
@@ -119,6 +119,14 @@
         
         .btn-danger:hover {
             background: #c0392b;
+        }
+        
+        .btn-warning {
+            background: #f39c12;
+        }
+        
+        .btn-warning:hover {
+            background: #e67e22;
         }
         
         .message {
@@ -208,6 +216,20 @@
             color: #7f8c8d;
         }
         
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
         @media (max-width: 768px) {
             .content {
                 padding: 15px;
@@ -228,7 +250,7 @@
     <div class="container">
         <header>
             <h1>Угадай число</h1>
-            <div class="subtitle">Проверь свою интуицию и попади в международный рейтинг!</div>
+            <div class="subtitle">Проверь свою интуицию и попади в глобальный рейтинг!</div>
         </header>
         
         <div class="content">
@@ -245,7 +267,7 @@
                     <input type="password" id="password" placeholder="Придумайте пароль">
                 </div>
                 <div class="input-group">
-                    <select id="country" style="width: 100%; padding: 12px 15px; border-radius: 8px; border: 2px solid #ddd; font-size: 16px;">
+                    <select id="country">
                         <option value="">Выберите страну</option>
                         <option value="ru">Россия</option>
                         <option value="us">США</option>
@@ -257,6 +279,12 @@
                         <option value="in">Индия</option>
                         <option value="kr">Корея</option>
                         <option value="mx">Мексика</option>
+                        <!-- Страны Средней Азии -->
+                        <option value="kz">Казахстан</option>
+                        <option value="uz">Узбекистан</option>
+                        <option value="tj">Таджикистан</option>
+                        <option value="kg">Кыргызстан</option>
+                        <option value="tm">Туркменистан</option>
                     </select>
                 </div>
                 <button class="btn" onclick="login()">Войти</button>
@@ -279,7 +307,10 @@
             
             <!-- Таблица лидеров -->
             <div class="leaderboard-section">
-                <h2>Международный рейтинг игроков</h2>
+                <div class="section-title">
+                    <h2>Глобальный рейтинг игроков</h2>
+                    <button class="btn btn-warning" onclick="loadLeaderboard()">Обновить рейтинг</button>
+                </div>
                 <table class="leaderboard">
                     <thead>
                         <tr>
@@ -290,7 +321,9 @@
                         </tr>
                     </thead>
                     <tbody id="leaderboard-body">
-                        <!-- Данные рейтинга будут загружены здесь -->
+                        <tr>
+                            <td colspan="4" style="text-align: center;">Загрузка рейтинга...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -298,8 +331,12 @@
     </div>
 
     <script>
-        // Хранилище данных (в реальном приложении нужно использовать сервер)
-        let users = JSON.parse(localStorage.getItem('guessNumberUsers')) || {};
+        // API endpoints (в реальном приложении должны быть защищены)
+        const API_URL = 'https://jsonblob.com/api/jsonBlob';
+        // Для демонстрации используем JSONBin, но в реальном приложении нужен собственный сервер
+        
+        // Хранилище данных
+        let users = {};
         let currentUser = null;
         let targetNumber = 0;
         let attempts = 0;
@@ -316,7 +353,13 @@
             'jp': 'https://flagcdn.com/jp.svg',
             'in': 'https://flagcdn.com/in.svg',
             'kr': 'https://flagcdn.com/kr.svg',
-            'mx': 'https://flagcdn.com/mx.svg'
+            'mx': 'https://flagcdn.com/mx.svg',
+            // Флаги стран Средней Азии
+            'kz': 'https://flagcdn.com/kz.svg',
+            'uz': 'https://flagcdn.com/uz.svg',
+            'tj': 'https://flagcdn.com/tj.svg',
+            'kg': 'https://flagcdn.com/kg.svg',
+            'tm': 'https://flagcdn.com/tm.svg'
         };
         
         // Названия стран
@@ -330,25 +373,77 @@
             'jp': 'Япония',
             'in': 'Индия',
             'kr': 'Корея',
-            'mx': 'Мексика'
+            'mx': 'Мексика',
+            // Названия стран Средней Азии
+            'kz': 'Казахстан',
+            'uz': 'Узбекистан',
+            'tj': 'Таджикистан',
+            'kg': 'Кыргызстан',
+            'tm': 'Туркменистан'
         };
 
         // Инициализация при загрузке
         window.onload = function() {
-            updateLeaderboard();
+            loadLeaderboard();
             showGameElements(false);
             
             // Попытка автоматического входа, если пользователь уже авторизован
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
                 const userData = JSON.parse(savedUser);
-                if (users[userData.username] && users[userData.username].password === userData.password) {
-                    currentUser = userData.username;
-                    updateUserInfo();
-                    showGameElements(true);
-                }
+                currentUser = userData.username;
+                updateUserInfo();
+                showGameElements(true);
             }
         };
+
+        // Загрузка рейтинга с сервера
+        async function loadLeaderboard() {
+            try {
+                document.getElementById('leaderboard-body').innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center;">
+                            <div class="loading"></div> Загрузка рейтинга...
+                        </td>
+                    </tr>
+                `;
+                
+                // В реальном приложении здесь должен быть запрос к вашему серверу
+                // Для демонстрации используем localStorage, но с имитацией задержки сети
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Получаем данные из localStorage (в реальном приложении - с сервера)
+                const storedUsers = JSON.parse(localStorage.getItem('guessNumberUsers')) || {};
+                users = storedUsers;
+                
+                updateLeaderboard();
+            } catch (error) {
+                console.error('Ошибка загрузки рейтинга:', error);
+                document.getElementById('leaderboard-body').innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #e74c3c;">
+                            Ошибка загрузки рейтинга. Попробуйте позже.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Сохранение данных на сервер
+        async function saveData() {
+            try {
+                // В реальном приложении здесь должен быть запрос к вашему серверу
+                // Для демонстрации используем localStorage
+                localStorage.setItem('guessNumberUsers', JSON.stringify(users));
+                
+                // Имитация отправки на сервер
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return true;
+            } catch (error) {
+                console.error('Ошибка сохранения данных:', error);
+                return false;
+            }
+        }
 
         // Показать/скрыть элементы игры
         function showGameElements(show) {
@@ -362,7 +457,7 @@
 
         // Обновить информацию о пользователе
         function updateUserInfo() {
-            if (currentUser) {
+            if (currentUser && users[currentUser]) {
                 const user = users[currentUser];
                 const countryCode = user.country || '';
                 const countryName = countryNames[countryCode] || '';
@@ -389,7 +484,7 @@
             // Создаем массив пользователей с рекордами
             const usersWithRecords = [];
             for (const username in users) {
-                if (users[username].bestScore !== undefined) {
+                if (users[username].bestScore !== undefined && users[username].bestScore !== null) {
                     usersWithRecords.push({
                         username: username,
                         country: users[username].country,
@@ -403,6 +498,12 @@
             
             // Заполняем таблицу (только топ-10)
             const topUsers = usersWithRecords.slice(0, 10);
+            
+            if (topUsers.length === 0) {
+                leaderboardBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Пока нет записей в рейтинге</td></tr>';
+                return;
+            }
+            
             topUsers.forEach((user, index) => {
                 const row = document.createElement('tr');
                 
@@ -426,17 +527,10 @@
                 
                 leaderboardBody.appendChild(row);
             });
-            
-            // Если нет записей в рейтинге
-            if (topUsers.length === 0) {
-                const row = document.createElement('tr');
-                row.innerHTML = '<td colspan="4" style="text-align: center;">Пока нет записей в рейтинге</td>';
-                leaderboardBody.appendChild(row);
-            }
         }
 
         // Регистрация
-        function register() {
+        async function register() {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const country = document.getElementById('country').value;
@@ -447,22 +541,32 @@
                 return;
             }
             
+            // Загружаем актуальные данные
+            await loadLeaderboard();
+            
             if (users[username]) {
                 showMessage(messageEl, 'Пользователь уже существует', 'error');
                 return;
             }
             
             users[username] = { password, country, bestScore: null };
-            localStorage.setItem('guessNumberUsers', JSON.stringify(users));
             
-            showMessage(messageEl, 'Регистрация успешна! Теперь войдите.', 'success');
+            const saved = await saveData();
+            if (saved) {
+                showMessage(messageEl, 'Регистрация успешна! Теперь войдите.', 'success');
+            } else {
+                showMessage(messageEl, 'Ошибка регистрации. Попробуйте позже.', 'error');
+            }
         }
 
         // Вход
-        function login() {
+        async function login() {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const messageEl = document.getElementById('auth-message');
+            
+            // Загружаем актуальные данные
+            await loadLeaderboard();
             
             if (!users[username] || users[username].password !== password) {
                 showMessage(messageEl, 'Неверный логин или пароль', 'error');
@@ -501,7 +605,7 @@
         }
 
         // Проверить предположение
-        function checkGuess() {
+        async function checkGuess() {
             if (!gameStarted) {
                 showMessage(document.getElementById('result'), 'Сначала начните игру!', 'error');
                 return;
@@ -525,16 +629,26 @@
             if (guess === targetNumber) {
                 showMessage(document.getElementById('result'), `Поздравляем! Вы угадали число ${targetNumber} за ${attempts} попыток!`, 'success');
                 
+                // Загружаем актуальные данные перед обновлением
+                await loadLeaderboard();
+                
                 // Обновляем рекорд, если он лучше предыдущего
                 if (users[currentUser].bestScore === null || attempts < users[currentUser].bestScore) {
                     users[currentUser].bestScore = attempts;
-                    localStorage.setItem('guessNumberUsers', JSON.stringify(users));
-                    updateLeaderboard();
                     
-                    if (users[currentUser].bestScore === attempts) {
+                    const saved = await saveData();
+                    if (saved) {
+                        updateLeaderboard();
+                        
+                        if (users[currentUser].bestScore === attempts) {
+                            showMessage(document.getElementById('result'), 
+                                      `Новый рекорд! Вы вошли в глобальный рейтинг с результатом ${attempts} попыток!`, 
+                                      'success');
+                        }
+                    } else {
                         showMessage(document.getElementById('result'), 
-                                  `Новый рекорд! Вы вошли в международный рейтинг с результатом ${attempts} попыток!`, 
-                                  'success');
+                                  'Ошибка сохранения рекорда. Попробуйте позже.', 
+                                  'error');
                     }
                 }
                 
