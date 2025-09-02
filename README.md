@@ -3,6 +3,64 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    <style>
+    body { font-family: Arial, sans-serif; background:#0b0c10; color:#e6e6e6; margin:0; padding:20px; }
+    textarea {
+      width:100%; height:120px; padding:10px; font-size:15px;
+      border-radius:8px; border:1px solid #444; background:#111; color:#fff;
+    }
+    button { margin-top:10px; padding:10px 15px; border-radius:6px; border:0; cursor:pointer;
+      background:#e63946; color:white; font-weight:bold;
+    }
+    #blocker {
+      position:fixed; inset:0; z-index:99999;
+      display:none; align-items:center; justify-content:center;
+      background:rgba(0,0,0,0.85);
+      backdrop-filter: blur(4px);
+    }
+    .panel {
+      background:#111217; padding:28px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.6);
+      border:1px solid rgba(255,255,255,0.03); text-align:center;
+    }
+    .panel h1 { color:#e63946; margin-bottom:10px; }
+  </style>
+</head>
+<body>
+  <h2>📝 Напиши заметку</h2>
+  <textarea id="note" placeholder="Введите текст..."></textarea><br>
+  <button id="saveNote">Сохранить</button>
+
+  <!-- Блокировка -->
+  <div id="blocker">
+    <div class="panel">
+      <h1>🚫 Доступ временно ограничен</h1>
+      <p>Вы нарушили правила: запрещены оскорбления и плохие слова.</p>
+    </div>
+  </div>
+
+  <script>
+    const badWords = ["лох","тупица","плохой","дурак","идиот","асадбек плохой","асадбек лох","мат"]; 
+    // можно расширять список
+
+    const noteInput = document.getElementById("note");
+    const saveBtn = document.getElementById("saveNote");
+    const blocker = document.getElementById("blocker");
+
+    saveBtn.addEventListener("click", () => {
+      let text = noteInput.value.toLowerCase();
+
+      for (let word of badWords) {
+        if (text.includes(word)) {
+          // Показываем блокировку
+          blocker.style.display = "flex";
+          return;
+        }
+      }
+
+      alert("Заметка сохранена ✅");
+      noteInput.value = "";
+    });
+  </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Угадай число - Глобальный рейтинг</title>
