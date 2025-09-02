@@ -3,7 +3,12 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <style>
+  <!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Заметки с защитой</title>
+  <style>
     body { font-family: Arial, sans-serif; background:#0b0c10; color:#e6e6e6; margin:0; padding:20px; }
     textarea {
       width:100%; height:120px; padding:10px; font-size:15px;
@@ -23,6 +28,11 @@
       border:1px solid rgba(255,255,255,0.03); text-align:center;
     }
     .panel h1 { color:#e63946; margin-bottom:10px; }
+    .panel input {
+      padding:10px; margin-top:15px; width:200px;
+      border-radius:6px; border:1px solid #444; background:#222; color:white;
+    }
+    .panel button { margin-top:15px; background:#28a745; }
   </style>
 </head>
 <body>
@@ -35,32 +45,62 @@
     <div class="panel">
       <h1>🚫 Доступ временно ограничен</h1>
       <p>Вы нарушили правила: запрещены оскорбления и плохие слова.</p>
+      <p><b>Только администратор может разблокировать сайт.</b></p>
+      <input type="password" id="adminPass" placeholder="Введите пароль">
+      <br>
+      <button id="unlockBtn">Разблокировать</button>
     </div>
   </div>
 
   <script>
     const badWords = ["лох","тупица","плохой","дурак","идиот","асадбек плохой","асадбек лох","мат"]; 
-    // можно расширять список
+    const adminPassword = "ASADBEKantiban";
 
     const noteInput = document.getElementById("note");
     const saveBtn = document.getElementById("saveNote");
     const blocker = document.getElementById("blocker");
+    const unlockBtn = document.getElementById("unlockBtn");
+    const adminPass = document.getElementById("adminPass");
 
+    // Проверяем блокировку при загрузке
+    if (localStorage.getItem("blocked") === "true") {
+      blocker.style.display = "flex";
+    }
+
+    // Загружаем сохранённую заметку при входе
+    if (localStorage.getItem("savedNote")) {
+      noteInput.value = localStorage.getItem("savedNote");
+    }
+
+    // Сохраняем заметку по кнопке
     saveBtn.addEventListener("click", () => {
       let text = noteInput.value.toLowerCase();
 
       for (let word of badWords) {
         if (text.includes(word)) {
-          // Показываем блокировку
+          localStorage.setItem("blocked", "true");
           blocker.style.display = "flex";
           return;
         }
       }
 
-      alert("Заметка сохранена ✅");
-      noteInput.value = "";
+      localStorage.setItem("savedNote", noteInput.value); // сохраняем в браузере
+      alert("Заметка сохранена ✅ (она останется даже после перезагрузки)");
     });
-  </script>
+
+    // Разблокировка
+    unlockBtn.addEventListener("click", () => {
+      if (adminPass.value === adminPassword) {
+        localStorage.setItem("blocked", "false");
+        blocker.style.display = "none";
+        adminPass.value = "";
+        alert("✅ Сайт успешно разблокирован (администратор вошёл)");
+      } else {
+        alert("❌ Неверный пароль!");
+      }
+    });
+  </script>  
+ 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Угадай число - Глобальный рейтинг</title>
